@@ -36,7 +36,7 @@ fn init_logger() {
                 buf,
                 "{} {} [{}] {}",
                 Local::now().format("%Y-%m-%d %H:%M:%S"),
-                record.level(),
+                buf.default_styled_level(record.level()),
                 record.module_path().unwrap_or("<unnamed>"),
                 &record.args()
             )
