@@ -7,22 +7,21 @@ use bson::Document;
 pub enum BusinessError {
     #[fail(display = "Validation error on field: {}", field)]
     ValidationError { field: String },
+    #[fail(display = "argument error")]
+    ArgumentError,
     #[fail(display = "An internal error occurred. Please try again later.")]
     InternalError,
 }
 
 impl error::ResponseError for BusinessError {
     fn error_response(&self) -> HttpResponse {
-        match *self {
-            BusinessError::ValidationError { .. } => {
-                let resp = Resp::err(10001, &self.to_string());
-                HttpResponse::BadRequest().json(resp)
-            }
-            _ => {
-                let resp = Resp::err(10000, &self.to_string());
-                HttpResponse::InternalServerError().json(resp)
-            }
-        }
+        let code = match *self {
+            BusinessError::ValidationError { .. } => 10001,
+            BusinessError::ArgumentError { .. } => 10002,
+            _ => 10000,
+        };
+        let resp = Resp::err(code, &self.to_string());
+        HttpResponse::BadRequest().json(resp)
     }
     // 重写response的序列化结果
     fn render_response(&self) -> HttpResponse {
@@ -36,7 +35,7 @@ impl std::convert::From<bson::oid::Error> for BusinessError {
     }
 }
 
-impl std::convert::From<std::convert::Infallible> for BusinessError{
+impl std::convert::From<std::convert::Infallible> for BusinessError {
     fn from(_: std::convert::Infallible) -> Self {
         BusinessError::InternalError
     }
@@ -65,12 +64,12 @@ impl Resp<()> {
     }
 }
 
-pub trait CursorToVec {
-    fn to_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T>;
+pub trait CursorAsVec {
+    fn as_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T>;
 }
 
-impl CursorToVec for mongodb::cursor::Cursor {
-    fn to_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T> {
+impl CursorAsVec for mongodb::cursor::Cursor {
+    fn as_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T> {
         self.map(|item| {
             let doc: Document = item.unwrap();
             let bson = bson::Bson::Document(doc);

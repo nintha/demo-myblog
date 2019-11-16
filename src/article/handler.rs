@@ -3,11 +3,11 @@ use actix_web::{HttpResponse, web, HttpRequest};
 use crate::collection;
 use log::*;
 use bson::oid::ObjectId;
-use mongodb::{doc, bson};
-use crate::common::*;
 use bson::Document;
-use serde::{Deserialize, Serialize};
 use bson::ordered::OrderedDocument;
+use crate::common::*;
+use serde::{Deserialize, Serialize};
+use mongodb::doc;
 
 type SimpleResp = Result<HttpResponse, BusinessError>;
 
@@ -57,7 +57,7 @@ pub fn list_article() -> SimpleResp {
     let coll = collection("article");
 
     let cursor = coll.find(Some(doc! {}), None);
-    let result = cursor.map(|mut x| x.to_vec::<Article>());
+    let result = cursor.map(|mut x| x.as_vec::<Article>());
     match result {
         Ok(list) => Resp::ok(list).to_json_result(),
         Err(e) => {

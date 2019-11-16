@@ -1,11 +1,14 @@
+#[macro_use]
+extern crate bson;
+
 use log::info;
 use lazy_static::lazy_static;
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase;
 use mongodb::coll::Collection;
-use actix_web::{web, App, HttpServer, FromRequest, error, HttpResponse};
+use actix_web::{web, App, HttpServer, FromRequest};
 use crate::article::Article;
-use crate::common::Resp;
+use crate::common::*;
 
 mod common;
 mod article;
@@ -56,11 +59,7 @@ fn main() {
                   cfg.error_handler(|err, _req| {
                       // <- create custom error response
                       log::error!("json extractor error, path={}, {}", _req.uri(), err);
-                      let resp = Resp::err(10002, "argument error");
-                      error::InternalError::from_response(
-                          err,
-                          HttpResponse::BadRequest().json(resp),
-                      ).into()
+                      BusinessError::ArgumentError.into()
                   })
               })
         )
