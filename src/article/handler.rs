@@ -8,10 +8,11 @@ use bson::ordered::OrderedDocument;
 use crate::common::*;
 use serde::{Deserialize, Serialize};
 use mongodb::doc;
+use crate::article::ArticleQuery;
 
 type SimpleResp = Result<HttpResponse, BusinessError>;
 
-pub fn struct_to_document<'a, T: Sized + Serialize + Deserialize<'a>>(t: &T) -> Option<OrderedDocument> {
+fn struct_to_document<'a, T: Sized + Serialize + Deserialize<'a>>(t: &T) -> Option<OrderedDocument> {
     let mid: Option<OrderedDocument> = bson::to_bson(t)
         .ok()
         .map(|x| x.as_document().unwrap().to_owned());
@@ -53,10 +54,25 @@ pub fn save_article(article: web::Json<Article>) -> SimpleResp {
     }
 }
 
-pub fn list_article() -> SimpleResp {
-    let coll = collection("article");
+pub fn list_article(query: web::Json<ArticleQuery>) -> SimpleResp {
+    let query = query.into_inner();
 
-    let cursor = coll.find(Some(doc! {}), None);
+    // 构造查询参数
+    let mut d: Document = doc! {};
+    if query._id.is_some() {
+        d.insert("_id", query._id.unwrap());
+    }
+
+    if !query.keyword.is_empty() {
+        d.insert("$or", bson::Bson::Array(vec![
+            doc! {"title": {"$regex": &query.keyword, "$options": "i"}}.into(),
+            doc! {"author": {"$regex": &query.keyword, "$options": "i"}}.into(),
+            doc! {"content": {"$regex": &query.keyword, "$options": "i"}}.into(),
+        ]));
+    }
+
+    let coll = collection("article");
+    let cursor = coll.find(Some(d), None);
     let result = cursor.map(|mut x| x.as_vec::<Article>());
     match result {
         Ok(list) => Resp::ok(list).to_json_result(),
