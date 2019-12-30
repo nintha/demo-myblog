@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, error};
 use serde::{Serialize, Deserialize};
 use failure::Fail;
 use bson::Document;
+use mongodb::Cursor;
 
 #[derive(Fail, Debug)]
 pub enum BusinessError {
@@ -68,7 +69,7 @@ pub trait CursorAsVec {
     fn as_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T>;
 }
 
-impl CursorAsVec for mongodb::cursor::Cursor {
+impl CursorAsVec for Cursor {
     fn as_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T> {
         self.map(|item| {
             let doc: Document = item.unwrap();

@@ -3,9 +3,7 @@ extern crate bson;
 
 use log::info;
 use lazy_static::lazy_static;
-use mongodb::{Client, ThreadedClient};
-use mongodb::db::ThreadedDatabase;
-use mongodb::coll::Collection;
+use mongodb::{Client, Collection};
 use actix_web::{web, App, HttpServer, FromRequest};
 use crate::article::Article;
 use crate::common::*;
@@ -18,12 +16,12 @@ lazy_static! {
 }
 
 fn create_mongo_client() -> Client {
-    Client::connect("localhost", 27017)
+    Client::with_uri_str("mongodb://localhost:27017")
         .expect("Failed to initialize standalone client.")
 }
 
 fn collection(coll_name: &str) -> Collection {
-    MONGO.db("myblog").collection(coll_name)
+    MONGO.database("myblog").collection(coll_name)
 }
 
 fn init_logger() {

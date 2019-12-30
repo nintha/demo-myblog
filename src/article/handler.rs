@@ -7,7 +7,6 @@ use bson::Document;
 use bson::ordered::OrderedDocument;
 use crate::common::*;
 use serde::{Deserialize, Serialize};
-use mongodb::doc;
 use crate::article::ArticleQuery;
 
 type SimpleResp = Result<HttpResponse, BusinessError>;
@@ -39,7 +38,8 @@ pub fn save_article(article: web::Json<Article>) -> SimpleResp {
     match result {
         Ok(rs) => {
             let new_id: String = rs.inserted_id
-                .and_then(|x| x.as_object_id().map(ObjectId::to_hex))
+                .as_object_id()
+                .map(ObjectId::to_hex)
                 .ok_or_else(|| {
                     error!("save_article error, can not get inserted id");
                     BusinessError::InternalError
