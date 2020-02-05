@@ -11,34 +11,33 @@ pub enum BusinessError {
     #[fail(display = "argument error")]
     ArgumentError,
     #[fail(display = "An internal error occurred. Please try again later.")]
-    InternalError,
+    InternalError { from: String },
 }
 
 impl error::ResponseError for BusinessError {
     fn error_response(&self) -> HttpResponse {
-        let code = match *self {
+        let code = match self {
             BusinessError::ValidationError { .. } => 10001,
             BusinessError::ArgumentError { .. } => 10002,
-            _ => 10000,
+            BusinessError::InternalError {from} => {
+                log::error!("from error: {}", from);
+                10000
+            }
         };
         let resp = Resp::err(code, &self.to_string());
         HttpResponse::BadRequest().json(resp)
     }
-    // 重写response的序列化结果
-    fn render_response(&self) -> HttpResponse {
-        self.error_response()
-    }
 }
 
 impl std::convert::From<bson::oid::Error> for BusinessError {
-    fn from(_: bson::oid::Error) -> Self {
-        BusinessError::InternalError
+    fn from(e: bson::oid::Error) -> Self {
+        BusinessError::InternalError { from: e.to_string() }
     }
 }
 
 impl std::convert::From<std::convert::Infallible> for BusinessError {
-    fn from(_: std::convert::Infallible) -> Self {
-        BusinessError::InternalError
+    fn from(e: std::convert::Infallible) -> Self {
+        BusinessError::InternalError { from: e.to_string() }
     }
 }
 

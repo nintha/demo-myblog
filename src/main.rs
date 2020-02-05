@@ -46,17 +46,16 @@ fn init_logger() {
     info!("env_logger initialized.");
 }
 
-
-fn main() {
+#[actix_rt::main]
+async fn main() -> std::io::Result<()>{
     init_logger();
 
     let binding_address = "0.0.0.0:8000";
-    let server = HttpServer::new(|| App::new()
-        .data(// change json extractor configuration
+    HttpServer::new(|| App::new()
+        .app_data(
               web::Json::<Article>::configure(|cfg| {
-                  cfg.error_handler(|err, _req| {
-                      // <- create custom error response
-                      log::error!("json extractor error, path={}, {}", _req.uri(), err);
+                  cfg.error_handler(|err, req| {
+                      log::error!("json extractor error, path={}, {}", req.uri(), err);
                       BusinessError::ArgumentError.into()
                   })
               })
@@ -69,7 +68,7 @@ fn main() {
                 .route("{id}", web::delete().to(article::remove_article))
         ))
         .bind(binding_address)
-        .expect("Can not bind to port 8000");
-
-    server.run().unwrap();
+        .expect("Can not bind to " + binding_address)
+        .run()
+        .await
 }

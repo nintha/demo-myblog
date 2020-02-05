@@ -30,7 +30,7 @@ fn struct_to_document<'a, T: Sized + Serialize + Deserialize<'a>>(t: &T) -> Opti
     })
 }
 
-pub fn save_article(article: web::Json<Article>) -> SimpleResp {
+pub async fn save_article(article: web::Json<Article>) -> SimpleResp {
     let article: Article = article.into_inner();
     let d: Document = struct_to_document(&article).unwrap();
 
@@ -41,20 +41,19 @@ pub fn save_article(article: web::Json<Article>) -> SimpleResp {
                 .as_object_id()
                 .map(ObjectId::to_hex)
                 .ok_or_else(|| {
-                    error!("save_article error, can not get inserted id");
-                    BusinessError::InternalError
+                    BusinessError::InternalError { from: "save_article error, can not get inserted id".to_owned() }
                 })?;
             info!("save article, id={}", new_id);
             Resp::ok(new_id).to_json_result()
         }
         Err(e) => {
             error!("save_article error, {}", e);
-            Err(BusinessError::InternalError)
+            Err(BusinessError::InternalError { from: "save_article error".to_owned() })
         }
     }
 }
 
-pub fn list_article(query: web::Json<ArticleQuery>) -> SimpleResp {
+pub async fn list_article(query: web::Json<ArticleQuery>) -> SimpleResp {
     let query = query.into_inner();
 
     // 构造查询参数
@@ -78,19 +77,21 @@ pub fn list_article(query: web::Json<ArticleQuery>) -> SimpleResp {
         Ok(list) => Resp::ok(list).to_json_result(),
         Err(e) => {
             error!("list_article error, {}", e);
-            return Err(BusinessError::InternalError);
+            return Err(BusinessError::InternalError { from: "list_article error".to_owned() });
         }
     }
 }
 
-pub fn update_article(req: HttpRequest, article: web::Json<Article>) -> SimpleResp {
+pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> SimpleResp {
     let id = req.match_info().get("id").unwrap_or("");
     if id.is_empty() {
         return Err(BusinessError::ValidationError { field: "id".to_owned() });
     }
     let article = article.into_inner();
 
-    let filter = doc! {"_id" => ObjectId::with_string(id)?};
+    let oid = ObjectId::with_string(id)?;
+
+    let filter = doc! {"_id" => oid};
 
     let update = doc! {"$set": struct_to_document(&article).unwrap()};
 
@@ -101,14 +102,14 @@ pub fn update_article(req: HttpRequest, article: web::Json<Article>) -> SimpleRe
         }
         Err(e) => {
             error!("update_article, failed to visit db, id={}, {}", id, e);
-            return Err(BusinessError::InternalError);
+            return Err(BusinessError::InternalError { from: "update_article, failed to visit db".to_owned() });
         }
     };
 
     Resp::ok(effect).to_json_result()
 }
 
-pub fn remove_article(req: HttpRequest) -> SimpleResp {
+pub async fn remove_article(req: HttpRequest) -> SimpleResp {
     let id = req.match_info().get("id").unwrap_or("");
     if id.is_empty() {
         return Err(BusinessError::ValidationError { field: "id".to_owned() });
@@ -123,7 +124,7 @@ pub fn remove_article(req: HttpRequest) -> SimpleResp {
         }
         Err(e) => {
             error!("remove_article, failed to visit db, id={}, {}", id, e);
-            return Err(BusinessError::InternalError);
+            return Err(BusinessError::InternalError { from: "remove_article, failed to visit db".to_owned() });
         }
     };
 
