@@ -68,7 +68,7 @@ async fn main() -> std::io::Result<()>{
                 .route("{id}", web::delete().to(article::remove_article))
         ))
         .bind(binding_address)
-        .expect("Can not bind to " + binding_address)
+        .expect(&format!("Can not bind to {}", binding_address) )
         .run()
         .await
 }
