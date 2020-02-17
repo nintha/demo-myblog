@@ -49,7 +49,6 @@ impl Article {
     pub const TABLE_NAME: &'static str = "article";
 }
 
-
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ArticleQuery {
     #[serde(deserialize_with = "deserialize_object_id", default)]

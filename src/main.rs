@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate bson;
+#[macro_use]
+extern crate anyhow;
 
 use log::info;
 use lazy_static::lazy_static;
@@ -7,6 +9,7 @@ use mongodb::{Client, Collection};
 use actix_web::{web, App, HttpServer, FromRequest};
 use crate::article::Article;
 use crate::common::*;
+
 
 mod common;
 mod article;

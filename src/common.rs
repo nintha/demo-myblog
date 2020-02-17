@@ -1,43 +1,45 @@
 use actix_web::{HttpResponse, error};
 use serde::{Serialize, Deserialize};
-use failure::Fail;
 use bson::Document;
 use mongodb::Cursor;
+use thiserror::Error;
 
-#[derive(Fail, Debug)]
+/// error format "code#message"
+#[derive(Error, Debug)]
 pub enum BusinessError {
-    #[fail(display = "Validation error on field: {}", field)]
+    #[error("10001#Validation error on field: {field}")]
     ValidationError { field: String },
-    #[fail(display = "argument error")]
+    #[error("10002#argument error")]
     ArgumentError,
-    #[fail(display = "An internal error occurred. Please try again later.")]
-    InternalError { from: String },
+    #[error("10000#An internal error occurred. Please try again later.")]
+    InternalError {
+        #[source]
+        source: anyhow::Error,
+    },
+}
+
+impl BusinessError {
+    fn to_code(&self) -> i32 {
+        let code = &self.to_string()[0..5];
+        code.parse().unwrap_or(-1)
+    }
+
+    fn to_message(&self) -> String {
+        self.to_string()[6..].to_owned()
+    }
 }
 
 impl error::ResponseError for BusinessError {
     fn error_response(&self) -> HttpResponse {
-        let code = match self {
-            BusinessError::ValidationError { .. } => 10001,
-            BusinessError::ArgumentError { .. } => 10002,
-            BusinessError::InternalError {from} => {
-                log::error!("from error: {}", from);
-                10000
-            }
-        };
-        let resp = Resp::err(code, &self.to_string());
+        let resp = Resp::err(self.to_code(), &self.to_message());
         HttpResponse::BadRequest().json(resp)
     }
 }
 
-impl std::convert::From<bson::oid::Error> for BusinessError {
-    fn from(e: bson::oid::Error) -> Self {
-        BusinessError::InternalError { from: e.to_string() }
-    }
-}
-
-impl std::convert::From<std::convert::Infallible> for BusinessError {
-    fn from(e: std::convert::Infallible) -> Self {
-        BusinessError::InternalError { from: e.to_string() }
+impl From<mongodb::error::Error> for BusinessError {
+    fn from(e: mongodb::error::Error) -> Self {
+        log::error!("mongodb error, {}", e.to_string());
+        BusinessError::InternalError { source: anyhow!(e) }
     }
 }
 
