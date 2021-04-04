@@ -1,7 +1,11 @@
-use actix_web::{HttpResponse, error};
-use serde::{Serialize, Deserialize};
+use actix_web::{error, HttpResponse};
 use bson::Document;
+use futures::StreamExt;
 use mongodb::Cursor;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use std::future::Future;
+use std::pin::Pin;
 use thiserror::Error;
 
 /// error format "code#message"
@@ -44,7 +48,10 @@ impl From<mongodb::error::Error> for BusinessError {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct Resp<T> where T: Serialize {
+pub struct Resp<T>
+where
+    T: Serialize,
+{
     code: i32,
     message: String,
     data: Option<T>,
@@ -52,7 +59,11 @@ pub struct Resp<T> where T: Serialize {
 
 impl<T: Serialize> Resp<T> {
     pub fn ok(data: T) -> Self {
-        Resp { code: 0, message: "ok".to_owned(), data: Some(data) }
+        Resp {
+            code: 0,
+            message: "ok".to_owned(),
+            data: Some(data),
+        }
     }
 
     pub fn to_json_result(&self) -> Result<HttpResponse, BusinessError> {
@@ -62,20 +73,31 @@ impl<T: Serialize> Resp<T> {
 
 impl Resp<()> {
     pub fn err(error: i32, message: &str) -> Self {
-        Resp { code: error, message: message.to_owned(), data: None }
+        Resp {
+            code: error,
+            message: message.to_owned(),
+            data: None,
+        }
     }
 }
 
 pub trait CursorAsVec {
-    fn as_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T>;
+    fn into_vec<T>(self) -> Pin<Box<dyn Future<Output = Vec<T>> + Unpin>>
+    where
+        T: 'static + DeserializeOwned;
 }
 
 impl CursorAsVec for Cursor {
-    fn as_vec<'a, T: Serialize + Deserialize<'a>>(&mut self) -> Vec<T> {
-        self.map(|item| {
+    fn into_vec<T>(self) -> Pin<Box<dyn Future<Output = Vec<T>> + Unpin>>
+    where
+        T: 'static + DeserializeOwned,
+    {
+        let fut = StreamExt::map(self, |item| {
             let doc: Document = item.unwrap();
             let bson = bson::Bson::Document(doc);
             return bson::from_bson(bson).unwrap();
-        }).collect()
+        })
+        .collect();
+        Pin::new(Box::new(fut))
     }
 }
