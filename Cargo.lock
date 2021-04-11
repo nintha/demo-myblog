@@ -321,9 +321,9 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "autowired"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5875ca1f41241b2ec98b52327028d5506a86b53325a92584aad20760ee3ec72"
+checksum = "cfe4d7741faa817b2273e347615ff072e1a5a00cde8538aac6e51b061314e305"
 dependencies = [
  "autowired-derive",
  "dashmap",

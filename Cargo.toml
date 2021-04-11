@@ -25,7 +25,7 @@ serde_json = "1.0"
 thiserror = "1.0"
 anyhow = "1.0"
 
-autowired = "0.1.5"
+autowired = "0.1.6"
 inventory = "0.1"
 
 futures = "0.3.13"

@@ -1,55 +1,39 @@
-use super::Article;
-use crate::article::ArticleQuery;
-use crate::common::*;
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest};
+use autowired::Autowired;
 use bson::oid::ObjectId;
 use bson::Document;
-use log::*;
-use serde::{Deserialize, Serialize};
-use crate::middleware::mongodb::{collection};
 
-type SimpleResp = Result<HttpResponse, BusinessError>;
+use crate::article::service::ArticleService;
+use crate::article::ArticleQuery;
+use crate::common::*;
+use crate::middleware::mongodb::collection;
 
-fn struct_to_document<'a, T: Sized + Serialize + Deserialize<'a>>(t: &T) -> Option<Document> {
-    let mid: Option<Document> = bson::to_bson(t)
-        .ok()
-        .map(|x| x.as_document().unwrap().to_owned());
+use super::Article;
 
-    mid.map(|mut doc| {
-        let keys = doc.keys();
-        let rm: Vec<String> = keys
-            .filter(|k| doc.is_null(k))
-            .map(|x| x.to_owned())
-            .collect();
-        // remove null value fields
-        for x in rm {
-            doc.remove(&x);
-        }
-        doc
-    })
-}
+const ARTICLE_SERVICE: Autowired<ArticleService> = Autowired::new();
 
-pub async fn save_article(article: web::Json<Article>) -> SimpleResp {
+pub async fn save_article(article: web::Json<Article>) -> RespResult {
     let article: Article = article.into_inner();
-    let d: Document = struct_to_document(&article).unwrap();
+    let d: Document = struct_into_document(&article).unwrap();
 
     let rs = collection(Article::TABLE_NAME).insert_one(d, None).await?;
     let new_id: String = rs.inserted_id.as_object_id().map(ObjectId::to_hex).unwrap();
-    info!("save article, id={}", new_id);
+    log::info!("save article, id={}", new_id);
     Resp::ok(new_id).to_json_result()
 }
 
-pub async fn list_article(query: web::Json<ArticleQuery>) -> SimpleResp {
+pub async fn list_article(query: web::Json<ArticleQuery>) -> RespResult {
     let query = query.into_inner();
 
     // 构造查询参数
-    let mut d: Document = doc! {};
+    let mut filter: Document = doc! {};
     if query._id.is_some() {
-        d.insert("_id", query._id.unwrap());
+        filter.insert("_id", query._id.unwrap());
     }
 
+    // 关键字模糊查询
     if !query.keyword.is_empty() {
-        d.insert(
+        filter.insert(
             "$or",
             bson::Bson::Array(vec![
                 doc! {"title": {"$regex": & query.keyword, "$options": "i"}}.into(),
@@ -59,20 +43,10 @@ pub async fn list_article(query: web::Json<ArticleQuery>) -> SimpleResp {
         );
     }
 
-    let coll = collection("article");
-    match coll.find(Some(d), None).await {
-        Ok(cursor) => {
-            let list = cursor.into_vec::<Article>().await;
-            Resp::ok(list).to_json_result()
-        }
-        Err(e) => {
-            error!("list_article error, {:?}", e);
-            return Err(BusinessError::InternalError { source: anyhow!(e) });
-        }
-    }
+    ARTICLE_SERVICE.list_article(filter).await
 }
 
-pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> SimpleResp {
+pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> RespResult {
     let id = req.match_info().get("id").unwrap_or("");
 
     let oid = ObjectId::with_string(id).map_err(|e| {
@@ -86,21 +60,22 @@ pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> Si
 
     let filter = doc! {"_id": oid};
 
-    let update = doc! {"$set": struct_to_document( & article).unwrap()};
+    let update = doc! {"$set": struct_into_document( & article).unwrap()};
 
     let effect = match collection(Article::TABLE_NAME)
         .update_one(filter, update, None)
         .await
     {
         Ok(result) => {
-            info!(
+            log::info!(
                 "update article, id={}, effect={}",
-                id, result.modified_count
+                id,
+                result.modified_count
             );
             result.modified_count
         }
         Err(e) => {
-            error!("update_article, failed to visit db, id={}, {:?}", id, e);
+            log::error!("update_article, failed to visit db, id={}, {:?}", id, e);
             return Err(BusinessError::InternalError { source: anyhow!(e) });
         }
     };
@@ -108,7 +83,7 @@ pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> Si
     Resp::ok(effect).to_json_result()
 }
 
-pub async fn remove_article(req: HttpRequest) -> SimpleResp {
+pub async fn remove_article(req: HttpRequest) -> RespResult {
     let id = req.match_info().get("id").unwrap_or("");
     if id.is_empty() {
         return Err(BusinessError::ValidationError {
@@ -118,13 +93,16 @@ pub async fn remove_article(req: HttpRequest) -> SimpleResp {
 
     let filter = doc! {"_id": ObjectId::with_string(id).unwrap()};
 
-    let effect = match collection(Article::TABLE_NAME).delete_one(filter, None).await {
+    let effect = match collection(Article::TABLE_NAME)
+        .delete_one(filter, None)
+        .await
+    {
         Ok(result) => {
-            info!("delete article, id={}, effect={}", id, result.deleted_count);
+            log::info!("delete article, id={}, effect={}", id, result.deleted_count);
             result.deleted_count
         }
         Err(e) => {
-            error!("remove_article, failed to visit db, id={}, {:?}", id, e);
+            log::error!("remove_article, failed to visit db, id={}, {:?}", id, e);
             return Err(BusinessError::InternalError { source: anyhow!(e) });
         }
     };
