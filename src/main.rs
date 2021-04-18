@@ -6,38 +6,24 @@ extern crate anyhow;
 use crate::article::Article;
 use crate::common::*;
 use actix_web::{web, App, FromRequest, HttpServer};
-use log::info;
 
 mod article;
 mod common;
 mod middleware;
 
-fn init_logger() {
-    use chrono::Local;
-    use std::io::Write;
+const DEFAULT_CONFIG_FILE: &str = "config.yml";
+const CONFIG_FILE_ENV: &str = "MYBLOG_CONFIG";
 
-    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
-    // 设置日志打印格式
-    env_logger::Builder::from_env(env)
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{} {} [{}] {}",
-                Local::now().format("%Y-%m-%d %H:%M:%S"),
-                buf.default_styled_level(record.level()),
-                record.module_path().unwrap_or("<unnamed>"),
-                &record.args()
-            )
-        })
-        .init();
-    info!("env_logger initialized.");
-}
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    init_logger();
+    common::init_logger();
     actix_web::web::block(|| Result::<(), ()>::Ok(autowired::setup_submitted_beans())).await?;
 
-    let binding_address = "0.0.0.0:8000";
+    let file = std::env::var(CONFIG_FILE_ENV).unwrap_or_else(|_| DEFAULT_CONFIG_FILE.into());
+    let config = common::load_config(file)?;
+    log::info!("[load_config] {:?}", config);
+
+    let binding_address = format!("{}:{}", config.host, config.port);
     HttpServer::new(|| {
         App::new()
             .app_data(web::Json::<Article>::configure(|cfg| {
@@ -54,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
                     .route("{id}", web::delete().to(article::remove_article)),
             )
     })
-    .bind(binding_address)
+    .bind(&binding_address)
     .expect(&format!("Can not bind to {}", binding_address))
     .run()
     .await?;
