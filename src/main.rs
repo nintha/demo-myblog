@@ -17,11 +17,11 @@ const CONFIG_FILE_ENV: &str = "MYBLOG_CONFIG";
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     common::init_logger();
-    actix_web::web::block(|| Result::<(), ()>::Ok(autowired::setup_submitted_beans())).await?;
 
-    let file = std::env::var(CONFIG_FILE_ENV).unwrap_or_else(|_| DEFAULT_CONFIG_FILE.into());
-    let config = common::load_config(file)?;
+    let config = myblog_config();
     log::info!("[load_config] {:?}", config);
+
+    actix_web::web::block(|| Result::<(), ()>::Ok(autowired::setup_submitted_beans())).await?;
 
     let binding_address = format!("{}:{}", config.host, config.port);
     HttpServer::new(|| {

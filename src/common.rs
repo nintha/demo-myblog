@@ -1,7 +1,9 @@
+use crate::{CONFIG_FILE_ENV, DEFAULT_CONFIG_FILE};
 use actix_web::{error, HttpResponse};
 use bson::Document;
 use futures::StreamExt;
 use mongodb::Cursor;
+use once_cell::sync::OnceCell;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -171,4 +173,12 @@ pub fn load_config(path: impl AsRef<Path>) -> anyhow::Result<BlogConfig> {
     let text = std::fs::read_to_string(path)?;
     let config = serde_yaml::from_str(&text)?;
     Ok(config)
+}
+
+pub fn myblog_config() -> &'static BlogConfig {
+    static INSTANCE: OnceCell<BlogConfig> = OnceCell::new();
+    INSTANCE.get_or_init(|| {
+        let file = std::env::var(CONFIG_FILE_ENV).unwrap_or_else(|_| DEFAULT_CONFIG_FILE.into());
+        load_config(file).unwrap()
+    })
 }
