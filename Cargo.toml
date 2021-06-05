@@ -29,4 +29,4 @@ autowired = "0.1.6"
 inventory = "0.1"
 
 futures = "0.3.13"
-
+async-trait = "0.1.50"

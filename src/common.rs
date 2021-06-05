@@ -11,6 +11,8 @@ use std::path::Path;
 use std::pin::Pin;
 use thiserror::Error;
 
+pub mod service;
+
 pub type RespResult = Result<HttpResponse, BusinessError>;
 
 /// error format "code#message"
@@ -22,6 +24,7 @@ pub enum BusinessError {
     ArgumentError,
     #[error("10000#An internal error occurred. Please try again later.")]
     InternalError {
+        #[from]
         #[source]
         source: anyhow::Error,
     },

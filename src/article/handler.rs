@@ -9,17 +9,15 @@ use crate::common::*;
 use crate::middleware::mongodb::collection;
 
 use super::Article;
+use crate::common::service::MongodbCrudService;
 
 const ARTICLE_SERVICE: Autowired<ArticleService> = Autowired::new();
 
 pub async fn save_article(article: web::Json<Article>) -> RespResult {
     let article: Article = article.into_inner();
-    let d: Document = struct_into_document(&article).unwrap();
-
-    let rs = collection(Article::TABLE_NAME).insert_one(d, None).await?;
-    let new_id: String = rs.inserted_id.as_object_id().map(ObjectId::to_hex).unwrap();
-    log::info!("save article, id={}", new_id);
-    Resp::ok(new_id).to_json_result()
+    let id = ARTICLE_SERVICE.save(&article).await?;
+    log::info!("save_article, id={}", id);
+    Resp::ok(id).to_json_result()
 }
 
 pub async fn list_article(query: web::Json<ArticleQuery>) -> RespResult {
@@ -43,7 +41,8 @@ pub async fn list_article(query: web::Json<ArticleQuery>) -> RespResult {
         );
     }
 
-    ARTICLE_SERVICE.list_article(filter).await
+    let list = ARTICLE_SERVICE.list_with_filter(filter).await?;
+    Resp::ok(list).to_json_result()
 }
 
 pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> RespResult {
