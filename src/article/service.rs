@@ -6,7 +6,7 @@ use mongodb::Collection;
 
 #[derive(Default, autowired::Component)]
 pub struct ArticleService {
-    pub mongodb: Autowired<mongodb::Client>,
+    mongodb: Autowired<mongodb::Client>,
 }
 
 impl MongodbCrudService<Article> for ArticleService {

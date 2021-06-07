@@ -6,7 +6,6 @@ use bson::Document;
 use crate::article::service::ArticleService;
 use crate::article::ArticleQuery;
 use crate::common::*;
-use crate::middleware::mongodb::collection;
 
 use super::Article;
 use crate::common::service::MongodbCrudService;
@@ -50,34 +49,13 @@ pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> Re
 
     let oid = ObjectId::with_string(id).map_err(|e| {
         log::error!("update_article, can't parse id to ObjectId, {:?}", e);
-        BusinessError::ValidationError {
-            field: "id".to_owned(),
-        }
+        BusinessError::ValidationError("id".to_owned())
     })?;
 
-    let article = article.into_inner();
-
-    let filter = doc! {"_id": oid};
-
-    let update = doc! {"$set": struct_into_document( & article).unwrap()};
-
-    let effect = match collection(Article::TABLE_NAME)
-        .update_one(filter, update, None)
-        .await
-    {
-        Ok(result) => {
-            log::info!(
-                "update article, id={}, effect={}",
-                id,
-                result.modified_count
-            );
-            result.modified_count
-        }
-        Err(e) => {
-            log::error!("update_article, failed to visit db, id={}, {:?}", id, e);
-            return Err(BusinessError::InternalError { source: anyhow!(e) });
-        }
-    };
+    let effect = ARTICLE_SERVICE
+        .update_by_oid(oid, &article.into_inner())
+        .await?;
+    log::info!("update article, id={}, effect={}", id, effect);
 
     Resp::ok(effect).to_json_result()
 }
@@ -85,26 +63,16 @@ pub async fn update_article(req: HttpRequest, article: web::Json<Article>) -> Re
 pub async fn remove_article(req: HttpRequest) -> RespResult {
     let id = req.match_info().get("id").unwrap_or("");
     if id.is_empty() {
-        return Err(BusinessError::ValidationError {
-            field: "id".to_owned(),
-        });
+        return Err(BusinessError::ValidationError("id".to_owned()));
     }
 
-    let filter = doc! {"_id": ObjectId::with_string(id).unwrap()};
+    let oid = ObjectId::with_string(id).map_err(|e| {
+        log::error!("remove_article, can't parse id to ObjectId, {:?}", e);
+        BusinessError::ValidationError("id".to_owned())
+    })?;
 
-    let effect = match collection(Article::TABLE_NAME)
-        .delete_one(filter, None)
-        .await
-    {
-        Ok(result) => {
-            log::info!("delete article, id={}, effect={}", id, result.deleted_count);
-            result.deleted_count
-        }
-        Err(e) => {
-            log::error!("remove_article, failed to visit db, id={}, {:?}", id, e);
-            return Err(BusinessError::InternalError { source: anyhow!(e) });
-        }
-    };
+    let deleted = ARTICLE_SERVICE.remove_by_oid(oid).await?;
+    log::info!("delete article, id={}, effect={}", id, deleted);
 
-    Resp::ok(effect).to_json_result()
+    Resp::ok(deleted).to_json_result()
 }

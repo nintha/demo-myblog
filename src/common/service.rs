@@ -4,7 +4,7 @@ use bson::oid::ObjectId;
 use bson::Document;
 use mongodb::Collection;
 use serde::de::DeserializeOwned;
-use serde::{Serialize};
+use serde::Serialize;
 
 /// type `T` is the record data type
 ///
@@ -33,5 +33,25 @@ where
             .map(ObjectId::to_hex)
             .ok_or_else(|| anyhow!("[MongodbCrudService::save] Failed to get inserted id"))?;
         Ok(inserted_id)
+    }
+
+    /// return modified count
+    async fn update_by_oid(&self, oid: ObjectId, record: &T) -> anyhow::Result<i64> {
+        let filter = doc! {"_id": oid};
+
+        let d: Document = struct_into_document(record).ok_or_else(|| {
+            anyhow!("[MongodbCrudService::update_by_oid] Failed to convert struct into document")
+        })?;
+        let update = doc! {"$set": d};
+        let result = self.table().update_one(filter, update, None).await?;
+        Ok(result.modified_count)
+    }
+
+    /// return deleted count
+    async fn remove_by_oid(&self, oid: ObjectId) -> anyhow::Result<i64> {
+        let filter = doc! {"_id": oid};
+
+        let result = self.table().delete_one(filter, None).await?;
+        Ok(result.deleted_count)
     }
 }
