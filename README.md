@@ -12,4 +12,8 @@
 
 [使用Rust、Actix-web和MongoDB构建简单博客网站-03](./docs/Blog_Website_With_Rust_Actix-web_And_MongoDB_3.md)
 
+## TODO
+
+- [ ] 集成依赖注入库[`Autowired`](https://github.com/nintha/autowired-rs)
+- [ ] MongoDB的CURD操作抽象到一个Trait中
 
