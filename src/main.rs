@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
     log::info!("[load_config] {:?}", config);
 
     actix_web::web::block(|| Result::<(), ()>::Ok(autowired::setup_submitted_beans())).await?;
+    log::info!("[beans] loaded: {:?}", autowired::list_bean_names());
 
     let binding_address = format!("{}:{}", config.host, config.port);
     HttpServer::new(|| {
