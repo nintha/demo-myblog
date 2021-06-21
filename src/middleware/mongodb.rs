@@ -5,12 +5,12 @@ use mongodb::Client;
 
 pub const DB_NAME: &str = "myblog";
 
-#[bean]
-fn build_mongodb_client() -> Client {
+#[bean(option)]
+fn build_mongodb_client() -> Option<Client> {
     let config = myblog_config();
     let client = Runtime::new()
         .unwrap()
         .block_on(Client::with_uri_str(&config.mongodb_uri));
     log::info!("build mongodb client, uri={}", config.mongodb_uri);
-    client.unwrap()
+    client.ok()
 }
