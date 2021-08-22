@@ -9,7 +9,7 @@ categories: rust
 
 距离上次更新有一年多了，本次文章计划是介绍使用`Autowired`库以及重构下项目结构。
 
-本文完整源码见GITHUB Repo: https://github.com/nintha/demo-myblog
+本文完整源码见 GitHub Repo: https://github.com/nintha/demo-myblog
 
 `autowired` GitHub地址：https://github.com/nintha/autowired-rs
 
