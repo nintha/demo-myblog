@@ -12,6 +12,8 @@
 
 [使用Rust、Actix-web和MongoDB构建简单博客网站-03](./docs/Blog_Website_With_Rust_Actix-web_And_MongoDB_3.md)
 
+[使用Rust、Actix-web和MongoDB构建简单博客网站-04](./docs/Blog_Website_With_Rust_Actix-web_And_MongoDB_4.md)
+
 ## TODO
 
 - [x] 集成依赖注入库[`Autowired`](https://github.com/nintha/autowired-rs)
