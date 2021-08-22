@@ -14,6 +14,6 @@
 
 ## TODO
 
-- [ ] 集成依赖注入库[`Autowired`](https://github.com/nintha/autowired-rs)
-- [ ] MongoDB的CURD操作抽象到一个Trait中
+- [x] 集成依赖注入库[`Autowired`](https://github.com/nintha/autowired-rs)
+- [x] MongoDB的CURD操作抽象到一个Trait中
 
